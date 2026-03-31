@@ -78,6 +78,7 @@ public class KafkaFeature(IModule module) : FeatureBase(module)
             .AddHandlersFrom<KafkaFeature>()
             .AddConsumerFactory<DefaultConsumerFactory>()
             .AddConsumerFactory<ExpandoObjectConsumerFactory>()
+            .AddConsumerFactory<AvroConsumerFactory>()
             .AddProducerFactory<DefaultProducerFactory>()
             .AddProducerFactory<ExpandoObjectProducerFactory>()
             ;

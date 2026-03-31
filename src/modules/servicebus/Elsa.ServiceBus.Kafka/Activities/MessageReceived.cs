@@ -59,6 +59,17 @@ public class MessageReceived : Trigger<object>
     public Input<bool> IsLocal { get; set; } = null!;
 
     /// <summary>
+    /// Optional. When set, only Avro messages whose schema full name matches this value will trigger the activity.
+    /// Requires the consumer to use <see cref="Factories.AvroConsumerFactory"/>.
+    /// Example: <c>com.example.OrderPlaced</c>
+    /// </summary>
+    [Input(
+        DisplayName = "Schema Full Name",
+        Description = "Optional. Only process messages whose Avro schema full name matches this value (e.g. com.example.OrderPlaced). Requires an Avro consumer."
+    )]
+    public Input<string?> SchemaFullName { get; set; } = null!;
+
+    /// <summary>
     /// The received transport message.
     /// </summary>
     public Output<KafkaTransportMessage> TransportMessage = null!;
@@ -107,12 +118,15 @@ public class MessageReceived : Trigger<object>
         var predicateInput = (Input?)inputDescriptor!.ValueGetter(activity);
         var predicateExpression = predicateInput?.Expression;
 
+        var schemaFullName = SchemaFullName.GetOrDefault(context);
+
         return new MessageReceivedStimulus
         {
             ConsumerDefinitionId = consumerDefinitionId,
             Topics = topics.Distinct().ToList(),
             IsLocal = isLocal,
             Predicate = predicateExpression,
+            SchemaFullName = string.IsNullOrWhiteSpace(schemaFullName) ? null : schemaFullName,
         };
     }
 }
