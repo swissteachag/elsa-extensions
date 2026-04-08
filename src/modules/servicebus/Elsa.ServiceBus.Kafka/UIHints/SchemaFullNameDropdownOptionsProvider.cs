@@ -1,5 +1,4 @@
 using System.Reflection;
-using Avro;
 using Confluent.SchemaRegistry;
 using Elsa.Workflows.UIHints.Dropdown;
 
@@ -44,9 +43,9 @@ public class SchemaFullNameDropdownOptionsProvider(ISchemaRegistryDefinitionEnum
                         if (registered.SchemaType != SchemaType.Avro)
                             continue;
 
-                        var schema = Schema.Parse(registered.SchemaString);
+                        var schema = Avro.Schema.Parse(registered.SchemaString);
 
-                        if (schema is not RecordSchema recordSchema)
+                        if (schema is not Avro.RecordSchema recordSchema)
                             continue;
 
                         var fullName = recordSchema.Fullname;
