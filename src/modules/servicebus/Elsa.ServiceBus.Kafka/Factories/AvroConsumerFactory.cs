@@ -20,7 +20,7 @@ public class AvroConsumerFactory : IConsumerFactory
                 $"{nameof(AvroConsumerFactory)} requires a {nameof(SchemaRegistryDefinition)} " +
                 $"to be configured on the consumer definition.");
 
-        ISchemaRegistryClient schemaRegistryClient = new CachedSchemaRegistryClient(schemaRegistryDefinition.Config);
+        ISchemaRegistryClient schemaRegistryClient = BuildSchemaRegistryClient(schemaRegistryDefinition, context.ConsumerDefinition.Config);
         IAsyncDeserializer<GenericRecord> avroDeserializer = new AvroDeserializer<GenericRecord>(schemaRegistryClient);
 
         var consumer = new ConsumerBuilder<string, GenericRecord>(context.ConsumerDefinition.Config)
@@ -28,6 +28,31 @@ public class AvroConsumerFactory : IConsumerFactory
             .Build();
 
         return new ConsumerProxy(consumer);
+    }
+
+    /// <summary>
+    /// Builds a <see cref="CachedSchemaRegistryClient"/> for the given registry definition.
+    /// When <see cref="AuthCredentialsSource.SaslInherit"/> is configured, the Kafka SASL credentials
+    /// are bridged into the registry config, because <see cref="CachedSchemaRegistryClient"/> resolves
+    /// them from its own config dictionary rather than from the Kafka client config.
+    /// </summary>
+    private static ISchemaRegistryClient BuildSchemaRegistryClient(SchemaRegistryDefinition def, ConsumerConfig kafkaConfig)
+    {
+        var registryConfig = def.Config;
+
+        if (registryConfig.BasicAuthCredentialsSource != AuthCredentialsSource.SaslInherit
+            || string.IsNullOrEmpty(kafkaConfig.SaslUsername))
+            return new CachedSchemaRegistryClient(registryConfig);
+
+        // CachedSchemaRegistryClient(IEnumerable<KeyValuePair<string,string>>) reads "sasl.username"
+        // and "sasl.password" directly from the config entries when SaslInherit is set.
+        // We merge them in from the Kafka config without mutating the shared SchemaRegistryDefinition.
+        var merged = registryConfig
+            .Where(e => e.Key is not "sasl.username" and not "sasl.password")
+            .Append(new KeyValuePair<string, string>("sasl.username", kafkaConfig.SaslUsername))
+            .Append(new KeyValuePair<string, string>("sasl.password", kafkaConfig.SaslPassword ?? ""));
+
+        return new CachedSchemaRegistryClient(merged);
     }
 
     /// <summary>
